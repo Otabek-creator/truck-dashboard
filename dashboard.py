@@ -229,10 +229,10 @@ components.html(
     """
     <script>
     const scrollSpeed = 1;  // scroll tezligi
-    const scrollDelay = 50; // ms
+    const scrollDelay = 20; // ms
 
     function autoScroll() {
-        window.scrollBy(0, scrollSpeed);
+        window.scrollBy(0, scrollSpeed * direction);
 
         if ((window.innerHeight + window.scrollY) >= document.body.scrollHeight) {
             window.scrollTo(0, 0); // pastga yetganda tepaga qaytadi
