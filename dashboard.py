@@ -228,14 +228,23 @@ st.markdown("<hr>", unsafe_allow_html=True)
 components.html(
     """
     <script>
-    const scrollSpeed = 1;  // scroll tezligi
-    const scrollDelay = 20; // ms
+    const scrollSpeed = 1;
+    const scrollDelay = 20;
+    let direction = 1;
 
     function autoScroll() {
-        window.scrollBy(0, scrollSpeed * direction);
+        window.parent.scrollBy(0, scrollSpeed * direction);
 
-        if ((window.innerHeight + window.scrollY) >= document.body.scrollHeight) {
-            window.scrollTo(0, 0); // pastga yetganda tepaga qaytadi
+        const scrollTop = window.parent.scrollY;
+        const innerHeight = window.parent.innerHeight;
+        const scrollHeight = window.parent.document.body.scrollHeight;
+
+        if ((innerHeight + scrollTop) >= scrollHeight) {
+            direction = -1;
+        }
+
+        if (scrollTop <= 0) {
+            direction = 1;
         }
     }
 
