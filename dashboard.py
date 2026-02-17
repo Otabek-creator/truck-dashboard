@@ -222,34 +222,3 @@ with r5b:
     else: st.info("No dispatch data.")
 
 st.markdown("<hr>", unsafe_allow_html=True)
-
-# ── Row 6: Hiring ────────────────────────────────────────────────────────────
-_title("👥", "Driver Hiring Overview")
-df_hire = data["hiring"]
-if not df_hire.empty and "Status" in df_hire.columns:
-    r6a, r6b = st.columns(2)
-    with r6a:
-        d = df_hire["Status"].value_counts().reset_index(); d.columns = ["Status", "Count"]
-        st.altair_chart(_vbar(d, "Status", "Count", "Status", PAL_HIRING, 320).properties(padding=_PAD))
-    with r6b:
-        if "Hired Date" in df_hire.columns:
-            hd = df_hire.copy()
-            hd["Hired Date"] = pd.to_datetime(hd["Hired Date"], errors="coerce")
-            hd = hd.dropna(subset=["Hired Date"])
-            hd["Month"] = hd["Hired Date"].dt.to_period("M").astype(str)
-            m = hd.groupby("Month").size().reset_index(name="Hires")
-            st.altair_chart(
-                alt.Chart(m).mark_area(
-                    line=True, interpolate="monotone",
-                    color=alt.Gradient(gradient="linear", stops=[
-                        alt.GradientStop(color="#3B82F6", offset=0),
-                        alt.GradientStop(color="rgba(59,130,246,.1)", offset=1),
-                    ], x1=1, x2=1, y1=1, y2=0),
-                ).encode(
-                    x=alt.X("Month:N", axis=alt.Axis(labelAngle=-45), title=None),
-                    y=alt.Y("Hires:Q", title="New Hires"),
-                    tooltip=["Month:N", "Hires:Q"],
-                ).properties(height=320, padding=_PAD)
-            )
-        else: st.info("No hiring date data for trend.")
-else: st.info("No hiring data.")
