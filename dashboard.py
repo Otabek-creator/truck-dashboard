@@ -7,6 +7,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import streamlit.components.v1 as components
+from streamlit_autorefresh import st_autorefresh
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -224,31 +225,36 @@ with r5b:
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
-# Auto scroll script
+
+# ── Auto-scroll for TV ────────────────────────────────────────────────────────
 components.html(
     """
     <script>
-    const scrollSpeed = 1;
-    const scrollDelay = 20;
-    let direction = 1;
+        const scrollContainer = window.parent.document.querySelector('[data-testid="stAppViewContainer"]');
+        let isPaused = false;
 
-    function autoScroll() {
-        window.parent.scrollBy(0, scrollSpeed * direction);
+        function autoScroll() {
+            if (!scrollContainer || isPaused) return;
 
-        const scrollTop = window.parent.scrollY;
-        const innerHeight = window.parent.innerHeight;
-        const scrollHeight = window.parent.document.body.scrollHeight;
+            let scrollHeight = scrollContainer.scrollHeight;
+            let clientHeight = scrollContainer.clientHeight;
+            let scrollTop = scrollContainer.scrollTop;
 
-        if ((innerHeight + scrollTop) >= scrollHeight) {
-            direction = -1;
+            // Agar oxiriga yetgan bo'lsa (yoki juda yaqin)
+            if (scrollTop + clientHeight >= scrollHeight - 2) {
+                isPaused = true;
+                setTimeout(() => {
+                    scrollContainer.scrollTo({top: 0, behavior: 'smooth'});
+                    // Tepaga qaytish animatsiyasi tugaguncha kutamiz (masalan 2 soniya)
+                    setTimeout(() => { isPaused = false; }, 2000);
+                }, 3000); // Pastda 3 soniya turadi
+            } else {
+                scrollContainer.scrollBy(0, 1); // 1 piksel pastga
+            }
         }
 
-        if (scrollTop <= 0) {
-            direction = 1;
-        }
-    }
-
-    setInterval(autoScroll, scrollDelay);
+        // Har 50ms da ishga tushadi (tezlikni shu yerdan boshqaring)
+        window.setInterval(autoScroll, 50);
     </script>
     """,
     height=0,

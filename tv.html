@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        * { margin: 0; padding: 0; }
+        body { overflow: hidden; background: #000; }
+        iframe {
+            width: 100vw;
+            height: 100vh;
+            border: none;
+            transform-origin: top left;
+        }
+    </style>
+</head>
+<body>
+    <iframe id="frame" src="http://localhost:8501"></iframe>
+
+    <script>
+        const frame = document.getElementById('frame');
+        const scrollSpeed = 1;      // px per tick
+        const scrollDelay = 30;     // ms
+        const pauseAtBottom = 3000; // pastda necha ms kutish
+        const pauseAtTop = 1000;    // tepada necha ms kutish
+
+        let paused = false;
+
+        function autoScroll() {
+            if (paused) return;
+
+            const win = frame.contentWindow;
+            const doc = frame.contentDocument || win.document;
+            const scrollTop = win.scrollY || doc.documentElement.scrollTop;
+            const maxScroll = doc.documentElement.scrollHeight - doc.documentElement.clientHeight;
+
+            if (scrollTop >= maxScroll - 2) {
+                // Pastga yetdi — kutib tepaga qayt
+                paused = true;
+                setTimeout(() => {
+                    win.scrollTo({ top: 0, behavior: 'smooth' });
+                    setTimeout(() => paused = false, pauseAtTop);
+                }, pauseAtBottom);
+            } else {
+                win.scrollBy(0, scrollSpeed);
+            }
+        }
+
+        setInterval(autoScroll, scrollDelay);
+    </script>
+</body>
+</html>
