@@ -230,30 +230,61 @@ st.markdown("<hr>", unsafe_allow_html=True)
 components.html(
     """
     <script>
-        const scrollContainer = window.parent.document.querySelector('[data-testid="stAppViewContainer"]');
+        console.log("📺 Auto-scroll script loaded!");
+
+        function getScrollContainer() {
+            // Priority 1: Standard Streamlit container
+            let container = window.parent.document.querySelector('[data-testid="stAppViewContainer"]');
+            if (container) return container;
+            
+            // Priority 2: Fallback to main section
+            container = window.parent.document.querySelector('section.main');
+            if (container) return container;
+
+            // Priority 3: Body (rare but possible in some setups)
+            return window.parent.document.body;
+        }
+
         let isPaused = false;
-
+        
         function autoScroll() {
-            if (!scrollContainer || isPaused) return;
+            const scrollContainer = getScrollContainer();
+            if (!scrollContainer) {
+                console.log("❌ Scroll container not found");
+                return;
+            }
 
+            if (isPaused) return;
+
+            // Scroll dimensions
             let scrollHeight = scrollContainer.scrollHeight;
             let clientHeight = scrollContainer.clientHeight;
             let scrollTop = scrollContainer.scrollTop;
 
-            // Agar oxiriga yetgan bo'lsa (yoki juda yaqin)
+            // Debugging (har 100 martada bir chiqarish)
+            if (Math.random() > 0.99) console.log("Scrolling:", scrollTop, "/", scrollHeight);
+
+            // Check if reached bottom (tolerance 2px)
             if (scrollTop + clientHeight >= scrollHeight - 2) {
+                console.log("🛑 Bottom reached, pausing...");
                 isPaused = true;
+                
                 setTimeout(() => {
+                    console.log("⬆️ Returning to top...");
                     scrollContainer.scrollTo({top: 0, behavior: 'smooth'});
-                    // Tepaga qaytish animatsiyasi tugaguncha kutamiz (masalan 2 soniya)
-                    setTimeout(() => { isPaused = false; }, 2000);
-                }, 3000); // Pastda 3 soniya turadi
+                    
+                    // Wait for scroll-to-top animation
+                    setTimeout(() => { 
+                        console.log("▶️ Resuming scroll");
+                        isPaused = false; 
+                    }, 2000);
+                }, 3000);
             } else {
-                scrollContainer.scrollBy(0, 1); // 1 piksel pastga
+                scrollContainer.scrollBy(0, 1);
             }
         }
 
-        // Har 50ms da ishga tushadi (tezlikni shu yerdan boshqaring)
+        // Start loop
         window.setInterval(autoScroll, 50);
     </script>
     """,
