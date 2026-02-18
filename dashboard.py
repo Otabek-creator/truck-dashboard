@@ -82,27 +82,38 @@ def _title(icon, text):
 
 def _hbar(df, x, y, colour="#3B82F6", h=280):
     mx = df[x].max()
-    return (
-        alt.Chart(df).mark_bar(cornerRadiusEnd=4)
-        .encode(
-            x=alt.X(f"{x}:Q", title=None, scale=alt.Scale(domain=[0, mx * 1.25])),
-            y=alt.Y(f"{y}:N", sort="-x", title=None),
-            color=alt.value(colour),
-            tooltip=[f"{y}:N", f"{x}:Q"],
-        ).properties(height=h)
+    base = alt.Chart(df)
+    bars = base.mark_bar(cornerRadiusEnd=4).encode(
+        x=alt.X(f"{x}:Q", title=None, scale=alt.Scale(domain=[0, mx * 1.35])),
+        y=alt.Y(f"{y}:N", sort="-x", title=None),
+        color=alt.value(colour),
+        tooltip=[f"{y}:N", f"{x}:Q"],
     )
+    text = base.mark_text(align="left", dx=5, fontSize=14, fontWeight=400, color="#475569").encode(
+        x=alt.X(f"{x}:Q"),
+        y=alt.Y(f"{y}:N", sort="-x"),
+        text=alt.Text(f"{x}:Q"),
+    )
+    return (bars + text).properties(height=h)
 
 def _vbar(df, x, y, color_col=None, pal=None, h=280):
-    enc = {
+    base = alt.Chart(df)
+    bar_enc = {
         "x": alt.X(f"{x}:N", axis=alt.Axis(labelAngle=0), title=None),
         "y": alt.Y(f"{y}:Q", title=None),
         "tooltip": [f"{x}:N", f"{y}:Q"],
     }
     if color_col and pal:
-        enc["color"] = alt.Color(f"{color_col}:N", scale=alt.Scale(range=pal), legend=alt.Legend(orient="bottom"))
+        bar_enc["color"] = alt.Color(f"{color_col}:N", scale=alt.Scale(range=pal), legend=alt.Legend(orient="bottom"))
     else:
-        enc["color"] = alt.value("#3B82F6")
-    return alt.Chart(df).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(**enc).properties(height=h)
+        bar_enc["color"] = alt.value("#3B82F6")
+    bars = base.mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(**bar_enc)
+    text = base.mark_text(dy=-10, fontSize=14, fontWeight=400, color="#475569").encode(
+        x=alt.X(f"{x}:N"),
+        y=alt.Y(f"{y}:Q"),
+        text=alt.Text(f"{y}:Q"),
+    )
+    return (bars + text).properties(height=h)
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
@@ -118,7 +129,7 @@ st.markdown(
 # ── Row 1: KPI Cards ────────────────────────────────────────────────────────
 df_fleet, df_trailers = data["fleet"], data["trailers"]
 df_claims, df_accidents = data["claims"], data["accidents"]
-df_employees, df_oper = data["employees"], data["operations"]
+df_oper = data["operations"]
 
 active_trucks = df_fleet[df_fleet["FLEET STATUS"] == "Active"].shape[0] if "FLEET STATUS" in df_fleet.columns else 0
 open_issues = 0
@@ -129,13 +140,42 @@ if not df_oper.empty:
     except Exception: pass
 open_claims = df_claims[df_claims["STATUS"] == "Open"].shape[0] if "STATUS" in df_claims.columns else 0
 
+active_trailers = df_trailers[df_trailers["Status"] == "Active"].shape[0] if "Status" in df_trailers.columns else 0
+
+# Oxirgi 90 kun ichidagi accidentlar
+old_accidents = 0
+if not df_accidents.empty:
+    date_col = None
+    for c in df_accidents.columns:
+        if "date" in c.lower():
+            date_col = c
+            break
+    if date_col:
+        try:
+            df_accidents[date_col] = pd.to_datetime(df_accidents[date_col], errors="coerce")
+            cutoff = pd.Timestamp.now() - pd.Timedelta(days=90)
+            old_accidents = df_accidents[df_accidents[date_col] >= cutoff].shape[0]
+        except Exception:
+            old_accidents = df_accidents.shape[0]
+    else:
+        old_accidents = df_accidents.shape[0]
+# Oxirgi accidentdan beri necha kun o'tdi
+days_since_accident = "N/A"
+if not df_accidents.empty and date_col:
+    try:
+        last_date = df_accidents[date_col].dropna().max()
+        if pd.notna(last_date):
+            days_since_accident = (pd.Timestamp.now() - last_date).days
+    except Exception:
+        pass
+
 for col, (lbl, val, clr) in zip(st.columns(6), [
-    ("Active Trucks",   active_trucks,          "#22C55E"),
-    ("Total Trailers",  df_trailers.shape[0],   "#3B82F6"),
-    ("Open Issues",     open_issues,            "#EF4444"),
-    ("Open Claims",     open_claims,            "#F59E0B"),
-    ("Total Accidents", df_accidents.shape[0],  "#8B5CF6"),
-    ("Employees",       df_employees.shape[0],  "#0EA5E9"),
+    ("Active Trucks",     active_trucks,       "#22C55E"),
+    ("Active Trailers",   active_trailers,     "#3B82F6"),
+    ("Open Truck Issues", open_issues,          "#EF4444"),
+    ("Open Claims",       open_claims,          "#F59E0B"),
+    ("Old Accidents",     old_accidents,        "#8B5CF6"),
+    ("Countdown",         f"{days_since_accident} days", "#10B981"),
 ]):
     with col: _card(lbl, val, clr)
 
@@ -204,22 +244,40 @@ with r5a:
     _title("📋", "Claims by Type")
     if not df_claims.empty and "Type of claim" in df_claims.columns:
         d = df_claims["Type of claim"].value_counts().reset_index(); d.columns = ["Type", "Count"]
-        st.altair_chart(_vbar(d, "Type", "Count", "Type", PAL_CLAIMS, 340).properties(padding=_PAD))
+        st.altair_chart(_vbar(d, "Type", "Count", "Type", PAL_CLAIMS, 460).properties(padding=_PAD))
     else: st.info("No claims data.")
 with r5b:
     _title("🚚", "Dispatch Status by Team")
     df_load = data["load"]
     if not df_load.empty and "Team" in df_load.columns and "Status - UPDATE TEAM" in df_load.columns:
         d = df_load.groupby(["Team", "Status - UPDATE TEAM"]).size().reset_index(name="Count")
+        d.rename(columns={"Status - UPDATE TEAM": "Status"}, inplace=True)
+        PAL_DISPATCH = ["#3B82F6", "#22C55E", "#F97316", "#F472B6", "#8B5CF6", "#06B6D4"]
+        base = alt.Chart(d)
+        bars = base.mark_bar(
+            cornerRadiusTopLeft=4, cornerRadiusTopRight=4
+        ).encode(
+            x=alt.X("Team:N", axis=alt.Axis(labelAngle=0, labelFontSize=12, labelFontWeight=500), title=None),
+            y=alt.Y("Count:Q", title=None, stack="zero"),
+            color=alt.Color("Status:N",
+                scale=alt.Scale(range=PAL_DISPATCH),
+                legend=alt.Legend(orient="bottom", columns=3, title=None,
+                                 labelFontSize=11, symbolSize=80)),
+            tooltip=["Team:N", "Status:N", "Count:Q"],
+            order=alt.Order("Count:Q", sort="descending"),
+        )
+        # Segment midpoint hisoblash — y va y2 oralig'i markazi
+        text = base.mark_text(
+            fontSize=13, fontWeight=600, color="#fff"
+        ).encode(
+            x=alt.X("Team:N"),
+            y=alt.Y("Count:Q", stack="zero", bandPosition=0.5),
+            text=alt.Text("Count:Q"),
+            order=alt.Order("Count:Q", sort="descending"),
+        ).transform_filter(alt.datum.Count > 1)
         st.altair_chart(
-            alt.Chart(d).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
-            .encode(
-                x=alt.X("Team:N", axis=alt.Axis(labelAngle=-25), title=None),
-                y=alt.Y("Count:Q", title=None),
-                color=alt.Color("Status - UPDATE TEAM:N", scale=alt.Scale(range=PAL_TEAM),
-                                legend=alt.Legend(orient="bottom", columns=3, title=None)),
-                tooltip=["Team:N", "Status - UPDATE TEAM:N", "Count:Q"],
-            ).properties(height=340, padding=_PAD)
+            (bars + text).properties(height=460, padding=_PAD)
+                .configure_view(strokeWidth=0)
         )
     else: st.info("No dispatch data.")
 
