@@ -1,9 +1,18 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <style>
-        * { margin: 0; padding: 0; }
-        body { overflow: hidden; background: #000; }
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            overflow: hidden;
+            background: #000;
+        }
+
         iframe {
             width: 100vw;
             height: 100vh;
@@ -12,8 +21,10 @@
         }
     </style>
 </head>
+
 <body>
     <iframe id="frame" src="http://localhost:8501"></iframe>
+    <iframe id="frame" src="https://truck-dashboard.streamlit.app/"></iframe>
 
     <script>
         const frame = document.getElementById('frame');
@@ -47,4 +58,5 @@
         setInterval(autoScroll, scrollDelay);
     </script>
 </body>
+
 </html>
