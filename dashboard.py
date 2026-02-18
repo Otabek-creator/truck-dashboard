@@ -232,60 +232,113 @@ components.html(
     <script>
         console.log("📺 Auto-scroll script loaded!");
 
-        function getScrollContainer() {
-            // Priority 1: Standard Streamlit container
-            let container = window.parent.document.querySelector('[data-testid="stAppViewContainer"]');
-            if (container) return container;
-            
-            // Priority 2: Fallback to main section
-            container = window.parent.document.querySelector('section.main');
-            if (container) return container;
+        // ── Dynamik ravishda HAQIQIY scrollable elementni topish ──
+        function findScrollableElement() {
+            try {
+                const doc = window.parent.document;
 
-            // Priority 3: Body (rare but possible in some setups)
-            return window.parent.document.body;
+                // 1-usul: Ma'lum Streamlit selektorlar
+                const selectors = [
+                    '[data-testid="stMain"]',
+                    '[data-testid="stAppViewContainer"]',
+                    'section.main',
+                    '.main .block-container',
+                ];
+                for (const sel of selectors) {
+                    const el = doc.querySelector(sel);
+                    if (el && el.scrollHeight > el.clientHeight + 20) {
+                        console.log("✅ Scrollable topildi (selector):", sel);
+                        return el;
+                    }
+                }
+
+                // 2-usul: Barcha elementlarni skanerlash — haqiqiy scrollable ni topish
+                const allElements = doc.querySelectorAll('*');
+                let bestEl = null;
+                let bestDiff = 0;
+                for (const el of allElements) {
+                    const diff = el.scrollHeight - el.clientHeight;
+                    if (diff > 100) {
+                        const style = window.parent.getComputedStyle(el);
+                        const overflowY = style.overflowY;
+                        if (overflowY === 'auto' || overflowY === 'scroll') {
+                            if (diff > bestDiff) {
+                                bestDiff = diff;
+                                bestEl = el;
+                            }
+                        }
+                    }
+                }
+                if (bestEl) {
+                    console.log("✅ Scrollable topildi (scan):", bestEl.tagName, bestEl.className);
+                    return bestEl;
+                }
+
+                // 3-usul: documentElement yoki body
+                if (doc.documentElement.scrollHeight > doc.documentElement.clientHeight + 20) {
+                    console.log("✅ Scrollable: documentElement");
+                    return doc.documentElement;
+                }
+
+                console.log("⚠️ Hech qanday scrollable topilmadi, window ishlatiladi");
+                return null;
+            } catch(e) {
+                console.log("❌ Parent access xatosi:", e.message);
+                return null;
+            }
         }
 
+        let scrollContainer = null;
         let isPaused = false;
-        
+        let retryCount = 0;
+
         function autoScroll() {
-            const scrollContainer = getScrollContainer();
+            // Container hali topilmagan bo'lsa, qayta izlash
             if (!scrollContainer) {
-                console.log("❌ Scroll container not found");
-                return;
+                if (retryCount < 30) {
+                    retryCount++;
+                    scrollContainer = findScrollableElement();
+                    if (!scrollContainer) return;
+                } else {
+                    return; // 30 marta urinib ko'rdi, topilmadi
+                }
             }
 
             if (isPaused) return;
 
-            // Scroll dimensions
-            let scrollHeight = scrollContainer.scrollHeight;
-            let clientHeight = scrollContainer.clientHeight;
-            let scrollTop = scrollContainer.scrollTop;
+            let scrollTop, scrollHeight, clientHeight;
 
-            // Debugging (har 100 martada bir chiqarish)
-            if (Math.random() > 0.99) console.log("Scrolling:", scrollTop, "/", scrollHeight);
+            // scrollContainer null bo'lsa window.parent dan foydalanish
+            if (scrollContainer === null) return;
 
-            // Check if reached bottom (tolerance 2px)
-            if (scrollTop + clientHeight >= scrollHeight - 2) {
-                console.log("🛑 Bottom reached, pausing...");
+            scrollTop = scrollContainer.scrollTop;
+            scrollHeight = scrollContainer.scrollHeight;
+            clientHeight = scrollContainer.clientHeight;
+
+            // Pastga yetganini tekshirish
+            if (scrollTop + clientHeight >= scrollHeight - 5) {
+                console.log("🛑 Pastga yetdi! scrollTop:", scrollTop, "scrollHeight:", scrollHeight);
                 isPaused = true;
-                
+
                 setTimeout(() => {
-                    console.log("⬆️ Returning to top...");
-                    scrollContainer.scrollTo({top: 0, behavior: 'smooth'});
-                    
-                    // Wait for scroll-to-top animation
-                    setTimeout(() => { 
-                        console.log("▶️ Resuming scroll");
-                        isPaused = false; 
-                    }, 2000);
-                }, 3000);
+                    console.log("⬆️ Tepaga qaytish...");
+                    scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
+
+                    setTimeout(() => {
+                        console.log("▶️ Davom etish");
+                        isPaused = false;
+                    }, 2500);
+                }, 4000);
             } else {
                 scrollContainer.scrollBy(0, 1);
             }
         }
 
-        // Start loop
-        window.setInterval(autoScroll, 50);
+        // 2 soniya kutib boshlash (Streamlit to'liq yuklangan bo'lishi uchun)
+        setTimeout(() => {
+            console.log("🚀 Auto-scroll boshlandi!");
+            window.setInterval(autoScroll, 40);
+        }, 2000);
     </script>
     """,
     height=0,
