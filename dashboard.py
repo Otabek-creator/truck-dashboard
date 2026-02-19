@@ -48,21 +48,25 @@ _PAD = {"top": 10, "bottom": 10, "left": 10, "right": 10}
 
 
 # ── Data ─────────────────────────────────────────────────────────────────────
+SPREADSHEET_ID = "1uvKPog0gjMaIug1MDNgpGECZF8T1gKHYITGNPb-Xv9Y"
+
 @st.cache_data(ttl=300)
 def load_data():
-    """Load all relevant sheets from the Excel workbook."""
-    path = "KPI BOARD.xlsx"
+    """Load all relevant sheets from Google Sheets (public CSV export)."""
+    def _gs(sheet_name, header=0):
+        try:
+            url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
+            return pd.read_csv(url, header=header)
+        except Exception:
+            return pd.DataFrame()
     try:
-        xls = pd.ExcelFile(path)
-        def _s(name, header=0):
-            return pd.read_excel(xls, name, header=header) if name in xls.sheet_names else pd.DataFrame()
         return {
-            "fleet": _s("data_fleet"), "trailers": _s("data_trailers"),
-            "operations": _s("OPERATIONS"), "data_oper": _s("Data_Oper"),
-            "safety": _s("data_safety", header=1), "accidents": _s("data_accidents"),
-            "claims": _s("data_claims"), "hiring": _s("data_hiring"),
-            "pmservice": _s("data_pmservice"), "load": _s("data_load"),
-            "employees": _s("data_employees"),
+            "fleet": _gs("data_fleet"), "trailers": _gs("data_trailers"),
+            "operations": _gs("OPERATIONS"), "data_oper": _gs("Data_Oper"),
+            "safety": _gs("data_safety", header=0), "accidents": _gs("data_accidents"),
+            "claims": _gs("data_claims"), "hiring": _gs("data_hiring"),
+            "pmservice": _gs("data_pmservice"), "load": _gs("data_load"),
+            "employees": _gs("data_employees"),
         }
     except Exception as exc:
         st.error(f"❌ Failed to load data: {exc}")
